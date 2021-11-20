@@ -48,7 +48,8 @@ class LightningCollaborativeFiltering(pl.LightningModule):
                  num_movies: int,
                  embedding_dim: int,
                  dropout=float,
-                 lr=1e-2):
+                 lr=1e-2,
+                 batch_size: int = 32):
         super().__init__()
         self.save_hyperparameters()
 

@@ -1,14 +1,16 @@
 from typing import Dict
 
 import pandas as pd
+from torch.utils.data import Dataset
 
 
-class MovielensDataset:
+class MovielensDataset(Dataset):
     def __init__(self, data: pd.DataFrame):
         self.users = data["UserID"].values
         self.movies = data["MovieID"].values
         self.ratings = data["ScaledRating"].values
 
+        # TODO: Move this pre-processing outside the dataset
         # Convert old to new ids
         self.u2id = {u_id: new_u_id for new_u_id, u_id in enumerate(set(self.users))}
         self.m2id = {m_id: new_m_id for new_m_id, m_id in enumerate(set(self.movies))}
