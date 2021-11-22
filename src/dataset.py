@@ -23,24 +23,25 @@ class MovielensDataset(Dataset):
 
 
 class MovielensDataModule(pl.LightningDataModule):
-    def __init__(self, data_dir: str, batch_size: int, train_val_ratio: float):
+    def __init__(self, ratings_dir: str, batch_size: int, train_val_ratio: float):
         super().__init__()
-        self.data_dir = data_dir
+        self.ratings_dir = ratings_dir
         self.batch_size = batch_size
         self.train_test_ratio = train_val_ratio
 
     def prepare_data(self):
-        data = pd.read_parquet(self.data_dir)
+        # Load Data
+        ratings = pd.read_parquet(self.ratings_dir)
 
         # Convert old to new ids
-        u2id = {u_id: new_u_id for new_u_id, u_id in enumerate(data["UserID"].unique())}
-        m2id = {m_id: new_m_id for new_m_id, m_id in enumerate(data["MovieID"].unique())}
+        u2id = {u_id: new_u_id for new_u_id, u_id in enumerate(ratings["UserID"].unique())}
+        m2id = {m_id: new_m_id for new_m_id, m_id in enumerate(ratings["MovieID"].unique())}
 
         self.num_users = len(u2id)
         self.num_movies = len(m2id)
 
-        data["NewUserID"] = data["UserID"].map(u2id)
-        data["NewMovieID"] = data["MovieID"].map(m2id)
+        ratings["NewUserID"] = ratings["UserID"].map(u2id)
+        ratings["NewMovieID"] = ratings["MovieID"].map(m2id)
 
         self.data = data
 
