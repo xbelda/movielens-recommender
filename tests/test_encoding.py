@@ -1,6 +1,6 @@
 import pytest
 
-from src.encoding import Vocabulary, NotFittedError
+from src.encoding import LabelEncoder, NotFittedError
 
 
 @pytest.fixture
@@ -10,7 +10,7 @@ def data():
 
 @pytest.fixture
 def vocab(data):
-    vocab = Vocabulary(handle_unknown=True)
+    vocab = LabelEncoder(handle_unknown=True)
     vocab.fit(data)
     return vocab
 
@@ -37,24 +37,24 @@ def test_unseen_data_returns_default_value(vocab):
 
 
 def test_unseen_data_raises_error_when_unknown_false(data):
-    vocab = Vocabulary(handle_unknown=False)
+    vocab = LabelEncoder(handle_unknown=False)
     vocab.fit(data)
     with pytest.raises(KeyError):
         vocab.transform("X")
 
 
 def test_transform_not_fit_raises_error():
-    vocab = Vocabulary()
+    vocab = LabelEncoder()
 
     with pytest.raises(NotFittedError):
         vocab.transform("A")
 
 
 def test_len_fitted_unknown_true_returns_length_data_plus_one(data):
-    vocab = Vocabulary(handle_unknown=True).fit(data)
+    vocab = LabelEncoder(handle_unknown=True).fit(data)
     assert len(vocab) == len(data) + 1
 
 
 def test_len_fitted_unknown_false_returns_length_data(data):
-    vocab = Vocabulary(handle_unknown=False).fit(data)
+    vocab = LabelEncoder(handle_unknown=False).fit(data)
     assert len(vocab) == len(data)

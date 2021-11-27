@@ -8,25 +8,25 @@ import torch
 from sklearn.preprocessing import MinMaxScaler
 from torch.utils.data import Dataset, DataLoader
 
-from src.encoding import Vocabulary
+from src.encoding import LabelEncoder
 
 
 class MovielensDataset(Dataset):
     def __init__(self,
                  scores: pd.DataFrame,
-                 user_vocab: Vocabulary,
-                 movie_vocab: Vocabulary,
+                 user_encoder: LabelEncoder,
+                 movie_encoder: LabelEncoder,
                  movies: pd.DataFrame,
-                 movie_categories_vocab: Vocabulary):
+                 movie_categories_encoder: LabelEncoder):
         self.user_ids = scores["UserID"].values
         self.movie_ids = scores["MovieID"].values
         self.ratings = scores["ScaledRating"].values
 
-        self.user_vocab = user_vocab
-        self.movie_vocab = movie_vocab
+        self.user_encoder = user_encoder
+        self.movie_encoder = movie_encoder
 
         self.movie_categories = movies.set_index("MovieID")["Genres"]
-        self.movie_categories_vocab = movie_categories_vocab
+        self.movie_categories_encoder = movie_categories_encoder
 
     def __len__(self):
         return len(self.user_ids)
@@ -37,13 +37,13 @@ class MovielensDataset(Dataset):
         rating = self.ratings[idx]
 
         # Transform IDs
-        new_user_id = self.user_vocab.transform(user_id)
-        new_movie_id = self.movie_vocab.transform(movie_id)
+        new_user_id = self.user_encoder.transform(user_id)
+        new_movie_id = self.movie_encoder.transform(movie_id)
 
         # Encode categories
         raw_categories = self.movie_categories.loc[movie_id]
         categories = raw_categories.split("|")
-        encoded_categories = [self.movie_categories_vocab.transform(c) for c in categories]
+        encoded_categories = [self.movie_categories_encoder.transform(c) for c in categories]
 
         return {"user": new_user_id,
                 "movie": new_movie_id,
@@ -71,12 +71,12 @@ class MovielensDataModule(pl.LightningDataModule):
         self.ratings = ratings
         self.movies = movies
 
-        # Generate vocabs
-        self.user_vocab = Vocabulary(handle_unknown=True).fit(ratings["UserID"].unique())
-        self.movie_vocab = Vocabulary(handle_unknown=True).fit(ratings["MovieID"].unique())
+        # Generate encoders
+        self.user_encoder = LabelEncoder(handle_unknown=True).fit(ratings["UserID"].unique())
+        self.movie_encoder = LabelEncoder(handle_unknown=True).fit(ratings["MovieID"].unique())
 
         unique_movie_cats = movies["Genres"].str.split("|").explode().unique()
-        self.movie_cat_vocab = Vocabulary(handle_unknown=True).fit(unique_movie_cats)
+        self.movie_cat_encoder = LabelEncoder(handle_unknown=True).fit(unique_movie_cats)
 
         self.scaler = MinMaxScaler().fit([[1], [5]])  # Transform ranges 1 to 5
 
@@ -85,10 +85,10 @@ class MovielensDataModule(pl.LightningDataModule):
 
         # Datasets
         dataset = MovielensDataset(scores=ratings,
-                                   user_vocab=self.user_vocab,
-                                   movie_vocab=self.movie_vocab,
+                                   user_encoder=self.user_encoder,
+                                   movie_encoder=self.movie_encoder,
                                    movies=self.movies,
-                                   movie_categories_vocab=self.movie_cat_vocab)
+                                   movie_categories_encoder=self.movie_cat_encoder)
         return dataset
 
     def setup(self, stage: Optional[str] = None) -> None:
