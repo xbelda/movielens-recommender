@@ -2,7 +2,6 @@
 # - [Collaborative Filtering for Movie Recommendations](https://keras.io/examples/structured_data/collaborative_filtering_movielens/)
 # - [Getting Started with a Movie Recommendation System](https://www.kaggle.com/ibtesama/getting-started-with-a-movie-recommendation-system#Content-Based-Filtering)
 # - [Collaborative Filtering in Pytorch](https://spiyer99.github.io/Recommendation-System-in-Pytorch/)
-import hydra
 from omegaconf import OmegaConf
 from pytorch_lightning.loggers import mlflow
 import pytorch_lightning as pl
@@ -19,7 +18,8 @@ def main() -> None:
     pl.seed_everything(cfg.SEED)
 
     # Load Data
-    datamodule = MovielensDataModule(cfg.DATA_PATH,
+    datamodule = MovielensDataModule(ratings_dir=cfg.PATHS.RATINGS,
+                                     movies_dir=cfg.PATHS.MOVIES,
                                      batch_size=cfg.BATCH_SIZE,
                                      train_val_ratio=cfg.TRAIN_VAL_RATIO)
 
@@ -27,8 +27,8 @@ def main() -> None:
     datamodule.prepare_data()
 
     # Model
-    model = LightningCollaborativeFiltering(num_users=datamodule.num_users,
-                                            num_movies=datamodule.num_movies,
+    model = LightningCollaborativeFiltering(num_users=len(datamodule.user_vocab),
+                                            num_movies=len(datamodule.movie_vocab),
                                             embedding_dim=cfg.EMBEDDING_DIM,
                                             dropout=cfg.DROPOUT,
                                             lr=cfg.LEARNING_RATE)
