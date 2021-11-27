@@ -120,7 +120,7 @@ class MovielensDataModule(pl.LightningDataModule):
                 new_batch[k] = torch.tensor(v)
             else:
                 tensor_list = list(map(torch.tensor, new_batch[k]))
-                new_batch[k] = torch.nn.utils.rnn.pad_sequence(tensor_list)
+                new_batch[k] = torch.nn.utils.rnn.pad_sequence(tensor_list, batch_first=True)
 
         return new_batch
 
