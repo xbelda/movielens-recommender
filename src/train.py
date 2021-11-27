@@ -29,7 +29,10 @@ def main() -> None:
     # Model
     model = LightningCollaborativeFiltering(num_users=len(datamodule.user_vocab),
                                             num_movies=len(datamodule.movie_vocab),
-                                            embedding_dim=cfg.EMBEDDING_DIM,
+                                            num_categories=len(datamodule.movie_cat_vocab),
+                                            user_embedding_dim=cfg.USER_EMBEDDING_DIM,
+                                            movie_embedding_dim=cfg.MOVIE_EMBEDDING_DIM,
+                                            movie_category_dim=cfg.MOVIE_CAT_EMBEDDING_DIM,
                                             dropout=cfg.DROPOUT,
                                             lr=cfg.LEARNING_RATE)
     # Callbacks
@@ -39,7 +42,7 @@ def main() -> None:
     logger = pl.loggers.MLFlowLogger()
 
     # Train the model
-    trainer = pl.Trainer(max_epochs=cfg.MAX_EPOCHS, gpus=1,
+    trainer = pl.Trainer(max_epochs=cfg.MAX_EPOCHS, gpus=0,
                          callbacks=[early_stopping], logger=logger)
     trainer.fit(model, datamodule=datamodule)
 
