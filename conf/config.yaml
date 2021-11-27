@@ -1,6 +1,7 @@
 PATHS:
   RATINGS: "./data/processed/ratings.parquet"
   MOVIES: "./data/processed/movies.parquet"
+  USERS: "./data/processed/users.parquet"
 SEED: 42
 TRAIN_VAL_RATIO: 0.8
 MODEL:

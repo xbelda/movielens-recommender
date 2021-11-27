@@ -14,19 +14,27 @@ from src.encoding import LabelEncoder
 class MovielensDataset(Dataset):
     def __init__(self,
                  scores: pd.DataFrame,
+                 movies: pd.DataFrame,
+                 users: pd.DataFrame,
                  user_encoder: LabelEncoder,
                  movie_encoder: LabelEncoder,
-                 movies: pd.DataFrame,
-                 movie_categories_encoder: LabelEncoder):
+                 movie_categories_encoder: LabelEncoder,
+                 user_gender_encoder: LabelEncoder,
+                 user_age_encoder: LabelEncoder):
         self.user_ids = scores["UserID"].values
         self.movie_ids = scores["MovieID"].values
         self.ratings = scores["ScaledRating"].values
+
+        self.user_info = users.set_index("UserID")
 
         self.user_encoder = user_encoder
         self.movie_encoder = movie_encoder
 
         self.movie_categories = movies.set_index("MovieID")["Genres"]
         self.movie_categories_encoder = movie_categories_encoder
+
+        self.user_gender_encoder = user_gender_encoder
+        self.user_age_encoder = user_age_encoder
 
     def __len__(self):
         return len(self.user_ids)
@@ -45,39 +53,51 @@ class MovielensDataset(Dataset):
         categories = raw_categories.split("|")
         encoded_categories = [self.movie_categories_encoder.transform(c) for c in categories]
 
+        # Encode User data
+        user_data = self.user_info.loc[user_id]
+
+        user_age = self.user_age_encoder.transform(user_data["Age"])
+        user_gender = self.user_gender_encoder.transform(user_data["Gender"])
+
         return {"user": new_user_id,
                 "movie": new_movie_id,
                 "rating": rating,
-                "movie_categories": encoded_categories}
+                "movie_categories": encoded_categories,
+                "user_age": user_age,
+                "user_gender": user_gender}
 
 
 class MovielensDataModule(pl.LightningDataModule):
     def __init__(self,
                  ratings_dir: str,
                  movies_dir: str,
+                 users_dir: str,
                  batch_size: int,
                  train_val_ratio: float):
         super().__init__()
         self.ratings_dir = ratings_dir
         self.movies_dir = movies_dir
+        self.users_dir = users_dir
         self.batch_size = batch_size
         self.train_test_ratio = train_val_ratio
 
     def prepare_data(self):
         # Load Data
-        ratings = pd.read_parquet(self.ratings_dir)
-        movies = pd.read_parquet(self.movies_dir)
-
-        self.ratings = ratings
-        self.movies = movies
+        self.ratings = pd.read_parquet(self.ratings_dir)
+        self.movies = pd.read_parquet(self.movies_dir)
+        self.users = pd.read_parquet(self.users_dir)
 
         # Generate encoders
-        self.user_encoder = LabelEncoder(handle_unknown=True).fit(ratings["UserID"].unique())
-        self.movie_encoder = LabelEncoder(handle_unknown=True).fit(ratings["MovieID"].unique())
+        self.user_encoder = LabelEncoder().fit(self.ratings["UserID"].unique())
+        self.movie_encoder = LabelEncoder().fit(self.ratings["MovieID"].unique())
 
-        unique_movie_cats = movies["Genres"].str.split("|").explode().unique()
-        self.movie_cat_encoder = LabelEncoder(handle_unknown=True).fit(unique_movie_cats)
+        unique_movie_cats = self.movies["Genres"].str.split("|").explode().unique()
+        self.movie_cat_encoder = LabelEncoder().fit(unique_movie_cats)
 
+        self.user_gender_encoder = LabelEncoder(handle_unknown=False).fit(self.users["Gender"].unique())
+        self.user_age_encoder = LabelEncoder(handle_unknown=False).fit(self.users["Age"].unique())
+
+        # Scaling
         self.scaler = MinMaxScaler().fit([[1], [5]])  # Transform ranges 1 to 5
 
     def _base_setup(self, ratings: pd.DataFrame) -> MovielensDataset:
@@ -85,10 +105,13 @@ class MovielensDataModule(pl.LightningDataModule):
 
         # Datasets
         dataset = MovielensDataset(scores=ratings,
+                                   movies=self.movies,
+                                   users=self.users,
                                    user_encoder=self.user_encoder,
                                    movie_encoder=self.movie_encoder,
-                                   movies=self.movies,
-                                   movie_categories_encoder=self.movie_cat_encoder)
+                                   movie_categories_encoder=self.movie_cat_encoder,
+                                   user_age_encoder=self.user_age_encoder,
+                                   user_gender_encoder=self.user_gender_encoder)
         return dataset
 
     def setup(self, stage: Optional[str] = None) -> None:

@@ -20,6 +20,7 @@ def main() -> None:
     # Load Data
     datamodule = MovielensDataModule(ratings_dir=cfg.PATHS.RATINGS,
                                      movies_dir=cfg.PATHS.MOVIES,
+                                     users_dir=cfg.PATHS.USERS,
                                      batch_size=cfg.MODEL.BATCH_SIZE,
                                      train_val_ratio=cfg.TRAIN_VAL_RATIO)
 

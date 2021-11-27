@@ -73,6 +73,7 @@ class CollaborativeFiltering(torch.nn.Module):
         #  Add content information
         #   - Number of votes per user/movie
         #   - User profile data
+        #   - Add gender/age/ocupation/zip
 
     def forward(self,
                 user_id: torch.Tensor,
