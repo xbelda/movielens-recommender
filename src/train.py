@@ -20,7 +20,7 @@ def main() -> None:
     # Load Data
     datamodule = MovielensDataModule(ratings_dir=cfg.PATHS.RATINGS,
                                      movies_dir=cfg.PATHS.MOVIES,
-                                     batch_size=cfg.BATCH_SIZE,
+                                     batch_size=cfg.MODEL.BATCH_SIZE,
                                      train_val_ratio=cfg.TRAIN_VAL_RATIO)
 
     # Compute internal parameters
@@ -30,11 +30,11 @@ def main() -> None:
     model = LightningCollaborativeFiltering(num_users=len(datamodule.user_vocab),
                                             num_movies=len(datamodule.movie_vocab),
                                             num_categories=len(datamodule.movie_cat_vocab),
-                                            user_embedding_dim=cfg.USER_EMBEDDING_DIM,
-                                            movie_embedding_dim=cfg.MOVIE_EMBEDDING_DIM,
-                                            movie_category_dim=cfg.MOVIE_CAT_EMBEDDING_DIM,
-                                            dropout=cfg.DROPOUT,
-                                            lr=cfg.LEARNING_RATE)
+                                            user_embedding_dim=cfg.MODEL.USER_EMBEDDING_DIM,
+                                            movie_embedding_dim=cfg.MODEL.MOVIE_EMBEDDING_DIM,
+                                            movie_category_dim=cfg.MODEL.MOVIE_CAT_EMBEDDING_DIM,
+                                            dropout=cfg.MODEL.DROPOUT,
+                                            lr=cfg.MODEL.LEARNING_RATE)
     # Callbacks
     early_stopping = pl.callbacks.EarlyStopping(monitor="Loss/Val", min_delta=1e-3, patience=3)
 
@@ -44,7 +44,7 @@ def main() -> None:
     # Train the models
     trainer = pl.Trainer(max_epochs=cfg.MAX_EPOCHS, gpus=1,
                          callbacks=[early_stopping], logger=logger)
-    trainer.logger.log_hyperparams({"batch_size": cfg.BATCH_SIZE})
+    trainer.logger.log_hyperparams({"batch_size": cfg.MODEL.BATCH_SIZE})
     trainer.fit(model, datamodule=datamodule)
 
 
