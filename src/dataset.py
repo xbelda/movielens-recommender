@@ -76,7 +76,7 @@ class MovielensDataModule(pl.LightningDataModule):
         self.movie_vocab = Vocabulary(handle_unknown=True).fit(ratings["MovieID"].unique())
 
         unique_movie_cats = movies["Genres"].str.split("|").explode().unique()
-        self.movie_cat_encoder = Vocabulary(handle_unknown=True).fit(unique_movie_cats)
+        self.movie_cat_vocab = Vocabulary(handle_unknown=True).fit(unique_movie_cats)
 
         self.scaler = MinMaxScaler().fit([[1], [5]])  # Transform ranges 1 to 5
 
@@ -88,7 +88,7 @@ class MovielensDataModule(pl.LightningDataModule):
                                    user_vocab=self.user_vocab,
                                    movie_vocab=self.movie_vocab,
                                    movies=self.movies,
-                                   movie_categories_vocab=self.movie_cat_encoder)
+                                   movie_categories_vocab=self.movie_cat_vocab)
         return dataset
 
     def setup(self, stage: Optional[str] = None) -> None:
