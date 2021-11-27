@@ -41,9 +41,10 @@ def main() -> None:
     # Logger
     logger = pl.loggers.MLFlowLogger()
 
-    # Train the model
-    trainer = pl.Trainer(max_epochs=cfg.MAX_EPOCHS, gpus=0,
+    # Train the models
+    trainer = pl.Trainer(max_epochs=cfg.MAX_EPOCHS, gpus=1,
                          callbacks=[early_stopping], logger=logger)
+    trainer.logger.log_hyperparams({"batch_size": cfg.BATCH_SIZE})
     trainer.fit(model, datamodule=datamodule)
 
 
