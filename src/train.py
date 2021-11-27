@@ -31,9 +31,13 @@ def main() -> None:
     model = LightningCollaborativeFiltering(num_users=len(datamodule.user_encoder),
                                             num_movies=len(datamodule.movie_encoder),
                                             num_categories=len(datamodule.movie_cat_encoder),
+                                            num_genders=len(datamodule.user_gender_encoder),
+                                            num_ages=len(datamodule.user_age_encoder),
                                             user_embedding_dim=cfg.MODEL.USER_EMBEDDING_DIM,
                                             movie_embedding_dim=cfg.MODEL.MOVIE_EMBEDDING_DIM,
                                             movie_category_dim=cfg.MODEL.MOVIE_CAT_EMBEDDING_DIM,
+                                            user_age_embedding_dim=cfg.MODEL.USER_AGE_EMBEDDING_DIM,
+                                            user_gender_embedding_dim=cfg.MODEL.USER_GENDER_EMBEDDING_DIM,
                                             dropout=cfg.MODEL.DROPOUT,
                                             lr=cfg.MODEL.LEARNING_RATE)
     # Callbacks

@@ -5,7 +5,12 @@ import pytorch_lightning as pl
 class UserEncoder(torch.nn.Module):
     def __init__(self,
                  num_users: int,
-                 user_embedding_dim: int):
+                 num_ages: int,
+                 num_genders: int,
+                 user_embedding_dim: int,
+                 user_age_embedding_dim: int,
+                 user_gender_embedding_dim: int,
+                 ):
         super().__init__()
 
         self.emb_users = torch.nn.Embedding(num_embeddings=num_users,
@@ -13,8 +18,19 @@ class UserEncoder(torch.nn.Module):
 
         self.bias_user = torch.nn.Embedding(num_embeddings=num_users, embedding_dim=1)
 
-    def forward(self, user_id):
-        user_vec = self.emb_users(user_id)
+        self.emb_age = torch.nn.Embedding(num_embeddings=num_ages,
+                                          embedding_dim=user_age_embedding_dim)
+
+        self.emb_gender = torch.nn.Embedding(num_embeddings=num_genders,
+                                             embedding_dim=user_gender_embedding_dim)
+
+    def forward(self, user_id, age, gender):
+        raw_user_vec = self.emb_users(user_id)
+        user_age = self.emb_age(age)
+        user_gender = self.emb_gender(gender)
+
+        user_vec = torch.cat([raw_user_vec, user_age, user_gender], dim=1)
+
         user_bias = self.bias_user(user_id).flatten()
         return user_vec, user_bias
 
@@ -49,18 +65,26 @@ class CollaborativeFiltering(torch.nn.Module):
                  num_users: int,
                  num_movies: int,
                  num_categories: int,
+                 num_ages: int,
+                 num_genders: int,
                  user_embedding_dim: int,
                  movie_embedding_dim: int,
                  movie_category_dim: int,
+                 user_age_embedding_dim: int,
+                 user_gender_embedding_dim: int,
                  dropout: float):
         super().__init__()
 
         self.margin = 0.1
 
-        assert movie_embedding_dim + movie_category_dim == user_embedding_dim, "Movie dims should have the same length as User dims"
+        assert movie_embedding_dim + movie_category_dim == user_embedding_dim + user_age_embedding_dim + user_gender_embedding_dim, "Movie dims should have the same length as User dims"
 
         self.user_encoder = UserEncoder(num_users=num_users,
-                                        user_embedding_dim=user_embedding_dim)
+                                        num_ages=num_ages,
+                                        num_genders=num_genders,
+                                        user_embedding_dim=user_embedding_dim,
+                                        user_age_embedding_dim=user_age_embedding_dim,
+                                        user_gender_embedding_dim=user_gender_embedding_dim)
 
         self.movie_encoder = MovieEncoder(num_movies=num_movies,
                                           num_categories=num_categories,
@@ -73,14 +97,16 @@ class CollaborativeFiltering(torch.nn.Module):
         #  Add content information
         #   - Number of votes per user/movie
         #   - User profile data
-        #   - Add gender/age/ocupation/zip
+        #   - Add ocupation/zip
 
     def forward(self,
                 user_id: torch.Tensor,
+                user_age: torch.Tensor,
+                user_gender: torch.Tensor,
                 movie_id: torch.Tensor,
                 movie_categories: torch.Tensor
                 ) -> torch.Tensor:
-        user_vec, user_bias = self.user_encoder(user_id)
+        user_vec, user_bias = self.user_encoder(user_id, user_age, user_gender)
         movie_vec, movie_bias = self.movie_encoder(movie_id, movie_categories)
 
         user_vec = self.dropout(user_vec)
@@ -105,10 +131,14 @@ class LightningCollaborativeFiltering(pl.LightningModule):
     def __init__(self, num_users: int,
                  num_movies: int,
                  num_categories: int,
+                 num_ages: int,
+                 num_genders: int,
                  user_embedding_dim: int,
                  movie_embedding_dim: int,
                  movie_category_dim: int,
-                 dropout=float,
+                 user_age_embedding_dim: int,
+                 user_gender_embedding_dim: int,
+                 dropout: float,
                  lr=1e-2):
         super().__init__()
         self.save_hyperparameters()
@@ -116,25 +146,31 @@ class LightningCollaborativeFiltering(pl.LightningModule):
         self.model = CollaborativeFiltering(num_users=num_users,
                                             num_movies=num_movies,
                                             num_categories=num_categories,
+                                            num_ages=num_ages,
+                                            num_genders=num_genders,
                                             user_embedding_dim=user_embedding_dim,
                                             movie_embedding_dim=movie_embedding_dim,
                                             movie_category_dim=movie_category_dim,
+                                            user_age_embedding_dim=user_age_embedding_dim,
+                                            user_gender_embedding_dim=user_gender_embedding_dim,
                                             dropout=dropout)
 
         self.lr = lr
 
         self.loss = torch.nn.MSELoss()
 
-    def forward(self, users, movies, movie_categories):
-        return self.model(users, movies, movie_categories)
+    def forward(self, users, user_age, user_gender, movies, movie_categories):
+        return self.model(users, user_age, user_gender, movies, movie_categories)
 
     def _base_step(self, batch, batch_idx):
         users = batch["user"]
         movies = batch["movie"]
         ratings = batch["rating"]
         movie_categories = batch["movie_categories"]
+        user_age = batch["user_age"]
+        user_gender = batch["user_gender"]
 
-        ratings_pred = self(users, movies, movie_categories)
+        ratings_pred = self(users, user_age, user_gender, movies, movie_categories)
 
         # Convert to same dtypes
         ratings = ratings.to(ratings_pred.dtype)
