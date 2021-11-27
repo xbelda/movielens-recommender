@@ -3,6 +3,10 @@ name = "imdb_recommender"
 version = "0.1.0"
 description = ""
 authors = ["xbelda <xaviblx@gmail.com>"]
+packages = [
+    { include = "src" }
+]
+
 
 [tool.poetry.dependencies]
 python = "^3.9"
