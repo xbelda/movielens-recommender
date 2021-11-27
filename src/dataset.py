@@ -130,7 +130,7 @@ class MovielensDataModule(pl.LightningDataModule):
             batch_size=self.batch_size,
             shuffle=True,
             pin_memory=True,
-            num_workers=0,
+            num_workers=8,
             collate_fn=self._collate_fn
         )
 
@@ -140,7 +140,7 @@ class MovielensDataModule(pl.LightningDataModule):
             batch_size=self.batch_size,
             shuffle=False,
             pin_memory=True,
-            num_workers=0,
+            num_workers=8,
             collate_fn=self._collate_fn
         )
 
