@@ -2,6 +2,48 @@ import torch
 import pytorch_lightning as pl
 
 
+class UserEncoder(torch.nn.Module):
+    def __init__(self,
+                 num_users: int,
+                 user_embedding_dim: int):
+        super().__init__()
+
+        self.emb_users = torch.nn.Embedding(num_embeddings=num_users,
+                                            embedding_dim=user_embedding_dim)
+
+        self.bias_user = torch.nn.Embedding(num_embeddings=num_users, embedding_dim=1)
+
+    def forward(self, user_id):
+        user_vec = self.emb_users(user_id)
+        user_bias = self.bias_user(user_id).flatten()
+        return user_vec, user_bias
+
+
+class MovieEncoder(torch.nn.Module):
+    def __init__(self,
+                 num_movies: int,
+                 num_categories: int,
+                 movie_embedding_dim: int,
+                 movie_category_dim: int):
+        super().__init__()
+
+        self.emb_movies = torch.nn.Embedding(num_embeddings=num_movies,
+                                             embedding_dim=movie_embedding_dim)
+
+        self.emb_movie_cats = torch.nn.EmbeddingBag(num_embeddings=num_categories,
+                                                    embedding_dim=movie_category_dim,
+                                                    mode="mean", padding_idx=0)
+        self.bias_movie = torch.nn.Embedding(num_embeddings=num_movies, embedding_dim=1)
+
+    def forward(self, movie_id, movie_categories):
+        raw_movie_vec = self.emb_movies(movie_id)
+        categories_vec = self.emb_movie_cats(movie_categories)
+
+        movie_vec = torch.cat([raw_movie_vec, categories_vec], dim=1)
+        movie_bias = self.bias_movie(movie_id).flatten()
+        return movie_vec, movie_bias
+
+
 class CollaborativeFiltering(torch.nn.Module):
     def __init__(self,
                  num_users: int,
@@ -10,26 +52,20 @@ class CollaborativeFiltering(torch.nn.Module):
                  user_embedding_dim: int,
                  movie_embedding_dim: int,
                  movie_category_dim: int,
-                 dropout=float):
+                 dropout: float):
         super().__init__()
-        # TODO: Split User and Movie Networks
 
         self.margin = 0.1
 
         assert movie_embedding_dim + movie_category_dim == user_embedding_dim, "Movie dims should have the same length as User dims"
 
-        self.emb_users = torch.nn.Embedding(num_embeddings=num_users,
-                                            embedding_dim=user_embedding_dim)
+        self.user_encoder = UserEncoder(num_users=num_users,
+                                        user_embedding_dim=user_embedding_dim)
 
-        self.emb_movies = torch.nn.Embedding(num_embeddings=num_movies,
-                                             embedding_dim=movie_embedding_dim)
-
-        self.emb_movie_cats = torch.nn.EmbeddingBag(num_embeddings=num_categories,
-                                                    embedding_dim=movie_category_dim,
-                                                    mode="mean", padding_idx=0)
-
-        self.bias_user = torch.nn.Embedding(num_embeddings=num_users, embedding_dim=1)
-        self.bias_movie = torch.nn.Embedding(num_embeddings=num_movies, embedding_dim=1)
+        self.movie_encoder = MovieEncoder(num_movies=num_movies,
+                                          num_categories=num_categories,
+                                          movie_embedding_dim=movie_embedding_dim,
+                                          movie_category_dim=movie_category_dim)
 
         self.dropout = torch.nn.Dropout(dropout)
 
@@ -43,18 +79,18 @@ class CollaborativeFiltering(torch.nn.Module):
                 movie_id: torch.Tensor,
                 movie_categories: torch.Tensor
                 ) -> torch.Tensor:
-        user_vec = self.emb_users(user_id)
-        movie_vec = torch.cat([self.emb_movies(movie_id),
-                               self.emb_movie_cats(movie_categories)], dim=1)
+        user_vec, user_bias = self.user_encoder(user_id)
+        movie_vec, movie_bias = self.movie_encoder(movie_id, movie_categories)
+
+        user_vec = self.dropout(user_vec)
+        movie_vec = self.dropout(movie_vec)
 
         product = (user_vec * movie_vec).sum(dim=1)
 
         product = self.dropout(product)
 
         # Add bias
-        scaled_product = (product
-                          + self.bias_user(user_id).flatten()
-                          + self.bias_movie(movie_id).flatten())
+        scaled_product = product + user_bias + movie_bias
 
         scaled_product = self.dropout(scaled_product)
 
