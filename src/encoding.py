@@ -30,10 +30,9 @@ class LabelEncoder:
         Returns:
             A fitted LabelEncoder.
         """
-        self.value_to_id = {value: i
-                            for i, value in enumerate(set(data),
-                                                      start=LabelEncoder.DEFAULT_VOCAB_START)}
+        start_pos = LabelEncoder.DEFAULT_VOCAB_START if self.handle_unknown else 0
 
+        self.value_to_id = {value: i for i, value in enumerate(set(data), start=start_pos)}
         self.id_to_value = {i: value for value, i in self.value_to_id.items()}
 
         self._fitted = True
