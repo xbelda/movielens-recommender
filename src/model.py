@@ -24,12 +24,16 @@ class UserEncoder(torch.nn.Module):
         self.emb_gender = torch.nn.Embedding(num_embeddings=num_genders,
                                              embedding_dim=user_gender_embedding_dim)
 
+        self.fc = torch.nn.Linear(in_features=user_embedding_dim + user_age_embedding_dim + user_gender_embedding_dim,
+                                  out_features=20)
+
     def forward(self, user_id, age, gender):
         raw_user_vec = self.emb_users(user_id)
         user_age = self.emb_age(age)
         user_gender = self.emb_gender(gender)
 
         user_vec = torch.cat([raw_user_vec, user_age, user_gender], dim=1)
+        user_vec = self.fc(user_vec)
 
         user_bias = self.bias_user(user_id).flatten()
         return user_vec, user_bias
@@ -51,11 +55,16 @@ class MovieEncoder(torch.nn.Module):
                                                     mode="mean", padding_idx=0)
         self.bias_movie = torch.nn.Embedding(num_embeddings=num_movies, embedding_dim=1)
 
+        self.fc = torch.nn.Linear(in_features=movie_embedding_dim + movie_category_dim,
+                                  out_features=20)
+
     def forward(self, movie_id, movie_categories):
         raw_movie_vec = self.emb_movies(movie_id)
         categories_vec = self.emb_movie_cats(movie_categories)
 
         movie_vec = torch.cat([raw_movie_vec, categories_vec], dim=1)
+        movie_vec = self.fc(movie_vec)
+
         movie_bias = self.bias_movie(movie_id).flatten()
         return movie_vec, movie_bias
 
