@@ -10,6 +10,7 @@ class UserEncoder(torch.nn.Module):
                  user_embedding_dim: int,
                  user_age_embedding_dim: int,
                  user_gender_embedding_dim: int,
+                 dropout: float
                  ):
         super().__init__()
 
@@ -27,12 +28,16 @@ class UserEncoder(torch.nn.Module):
         self.fc = torch.nn.Linear(in_features=user_embedding_dim + user_age_embedding_dim + user_gender_embedding_dim,
                                   out_features=20)
 
+        self.relu = torch.nn.ReLU()
+        self.dropout = torch.nn.Dropout(dropout)
+
     def forward(self, user_id, age, gender):
         raw_user_vec = self.emb_users(user_id)
         user_age = self.emb_age(age)
         user_gender = self.emb_gender(gender)
 
         user_vec = torch.cat([raw_user_vec, user_age, user_gender], dim=1)
+        user_vec = self.dropout(self.relu(user_vec))
         user_vec = self.fc(user_vec)
 
         user_bias = self.bias_user(user_id).flatten()
@@ -44,7 +49,9 @@ class MovieEncoder(torch.nn.Module):
                  num_movies: int,
                  num_categories: int,
                  movie_embedding_dim: int,
-                 movie_category_dim: int):
+                 movie_category_dim: int,
+                 dropout: float
+                 ):
         super().__init__()
 
         self.emb_movies = torch.nn.Embedding(num_embeddings=num_movies,
@@ -58,11 +65,15 @@ class MovieEncoder(torch.nn.Module):
         self.fc = torch.nn.Linear(in_features=movie_embedding_dim + movie_category_dim,
                                   out_features=20)
 
+        self.relu = torch.nn.ReLU()
+        self.dropout = torch.nn.Dropout(dropout)
+
     def forward(self, movie_id, movie_categories):
         raw_movie_vec = self.emb_movies(movie_id)
         categories_vec = self.emb_movie_cats(movie_categories)
 
         movie_vec = torch.cat([raw_movie_vec, categories_vec], dim=1)
+        movie_vec = self.dropout(self.relu(movie_vec))
         movie_vec = self.fc(movie_vec)
 
         movie_bias = self.bias_movie(movie_id).flatten()
@@ -93,12 +104,14 @@ class CollaborativeFiltering(torch.nn.Module):
                                         num_genders=num_genders,
                                         user_embedding_dim=user_embedding_dim,
                                         user_age_embedding_dim=user_age_embedding_dim,
-                                        user_gender_embedding_dim=user_gender_embedding_dim)
+                                        user_gender_embedding_dim=user_gender_embedding_dim,
+                                        dropout=dropout)
 
         self.movie_encoder = MovieEncoder(num_movies=num_movies,
                                           num_categories=num_categories,
                                           movie_embedding_dim=movie_embedding_dim,
-                                          movie_category_dim=movie_category_dim)
+                                          movie_category_dim=movie_category_dim,
+                                          dropout=dropout)
 
         self.dropout = torch.nn.Dropout(dropout)
 
@@ -118,17 +131,10 @@ class CollaborativeFiltering(torch.nn.Module):
         user_vec, user_bias = self.user_encoder(user_id, user_age, user_gender)
         movie_vec, movie_bias = self.movie_encoder(movie_id, movie_categories)
 
-        user_vec = self.dropout(user_vec)
-        movie_vec = self.dropout(movie_vec)
-
         product = (user_vec * movie_vec).sum(dim=1)
-
-        product = self.dropout(product)
 
         # Add bias
         scaled_product = product + user_bias + movie_bias
-
-        scaled_product = self.dropout(scaled_product)
 
         out = torch.sigmoid(scaled_product)
         # Rescale output (sigmoid saturates at 0 and 1)
