@@ -33,6 +33,7 @@ def main() -> None:
                                             num_categories=len(datamodule.movie_cat_encoder),
                                             num_genders=len(datamodule.user_gender_encoder),
                                             num_ages=len(datamodule.user_age_encoder),
+                                            common_embedding_dim=cfg.MODEL.COMMON_EMBEDDING_DIM,
                                             user_embedding_dim=cfg.MODEL.USER_EMBEDDING_DIM,
                                             movie_embedding_dim=cfg.MODEL.MOVIE_EMBEDDING_DIM,
                                             movie_category_dim=cfg.MODEL.MOVIE_CAT_EMBEDDING_DIM,

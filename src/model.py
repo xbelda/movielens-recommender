@@ -7,6 +7,7 @@ class UserEncoder(torch.nn.Module):
                  num_users: int,
                  num_ages: int,
                  num_genders: int,
+                 common_embedding_dim: int,
                  user_embedding_dim: int,
                  user_age_embedding_dim: int,
                  user_gender_embedding_dim: int,
@@ -26,7 +27,7 @@ class UserEncoder(torch.nn.Module):
                                              embedding_dim=user_gender_embedding_dim)
 
         self.fc = torch.nn.Linear(in_features=user_embedding_dim + user_age_embedding_dim + user_gender_embedding_dim,
-                                  out_features=20)
+                                  out_features=common_embedding_dim)
 
         self.relu = torch.nn.ReLU()
         self.dropout = torch.nn.Dropout(dropout)
@@ -48,6 +49,7 @@ class MovieEncoder(torch.nn.Module):
     def __init__(self,
                  num_movies: int,
                  num_categories: int,
+                 common_embedding_dim: int,
                  movie_embedding_dim: int,
                  movie_category_dim: int,
                  dropout: float
@@ -63,7 +65,7 @@ class MovieEncoder(torch.nn.Module):
         self.bias_movie = torch.nn.Embedding(num_embeddings=num_movies, embedding_dim=1)
 
         self.fc = torch.nn.Linear(in_features=movie_embedding_dim + movie_category_dim,
-                                  out_features=20)
+                                  out_features=common_embedding_dim)
 
         self.relu = torch.nn.ReLU()
         self.dropout = torch.nn.Dropout(dropout)
@@ -87,6 +89,7 @@ class CollaborativeFiltering(torch.nn.Module):
                  num_categories: int,
                  num_ages: int,
                  num_genders: int,
+                 common_embedding_dim: int,
                  user_embedding_dim: int,
                  movie_embedding_dim: int,
                  movie_category_dim: int,
@@ -102,6 +105,7 @@ class CollaborativeFiltering(torch.nn.Module):
         self.user_encoder = UserEncoder(num_users=num_users,
                                         num_ages=num_ages,
                                         num_genders=num_genders,
+                                        common_embedding_dim=common_embedding_dim,
                                         user_embedding_dim=user_embedding_dim,
                                         user_age_embedding_dim=user_age_embedding_dim,
                                         user_gender_embedding_dim=user_gender_embedding_dim,
@@ -109,6 +113,7 @@ class CollaborativeFiltering(torch.nn.Module):
 
         self.movie_encoder = MovieEncoder(num_movies=num_movies,
                                           num_categories=num_categories,
+                                          common_embedding_dim=common_embedding_dim,
                                           movie_embedding_dim=movie_embedding_dim,
                                           movie_category_dim=movie_category_dim,
                                           dropout=dropout)
@@ -148,6 +153,7 @@ class LightningCollaborativeFiltering(pl.LightningModule):
                  num_categories: int,
                  num_ages: int,
                  num_genders: int,
+                 common_embedding_dim: int,
                  user_embedding_dim: int,
                  movie_embedding_dim: int,
                  movie_category_dim: int,
@@ -163,6 +169,7 @@ class LightningCollaborativeFiltering(pl.LightningModule):
                                             num_categories=num_categories,
                                             num_ages=num_ages,
                                             num_genders=num_genders,
+                                            common_embedding_dim=common_embedding_dim,
                                             user_embedding_dim=user_embedding_dim,
                                             movie_embedding_dim=movie_embedding_dim,
                                             movie_category_dim=movie_category_dim,
