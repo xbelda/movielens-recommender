@@ -130,20 +130,19 @@ class MovielensDataModule(pl.LightningDataModule):
         tries to batch all `categories` into a single batch and fails due to
         each movie having a different number of categories.
         """
-        new_batch = defaultdict(list)
 
         padding_keys = {"movie_categories"}
 
-        for example in batch:
-            for k, v in example.items():
-                new_batch[k].append(v)
+        batch_keys = batch[0].keys()
 
-        for k, v in new_batch.items():
-            if k not in padding_keys:
-                new_batch[k] = torch.tensor(v)
+        new_batch = dict()
+        for k in batch_keys:
+            if k in padding_keys:
+                value = [torch.tensor(example[k]) for example in batch]
+                value = torch.nn.utils.rnn.pad_sequence(value, batch_first=True)
             else:
-                tensor_list = list(map(torch.tensor, new_batch[k]))
-                new_batch[k] = torch.nn.utils.rnn.pad_sequence(tensor_list, batch_first=True)
+                value = torch.tensor([example[k] for example in batch])
+            new_batch[k] = value
 
         return new_batch
 
