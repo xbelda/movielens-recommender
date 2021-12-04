@@ -61,8 +61,7 @@ class UserEncoder(torch.nn.Module):
         user_zip_area = self.emb_zip_area(zip_area)
 
         user_vec = torch.cat([raw_user_vec, user_age, user_gender, user_occupation, user_zip_area], dim=1)
-        user_vec = self.dropout(self.relu(user_vec))
-        user_vec = self.fc(user_vec)
+        user_vec = self.fc(self.dropout(self.relu(user_vec)))
 
         user_bias = self.bias_user(user_id).flatten()
         return user_vec, user_bias
@@ -97,8 +96,7 @@ class MovieEncoder(torch.nn.Module):
         categories_vec = self.emb_movie_cats(movie_categories)
 
         movie_vec = torch.cat([raw_movie_vec, categories_vec], dim=1)
-        movie_vec = self.dropout(self.relu(movie_vec))
-        movie_vec = self.fc(movie_vec)
+        movie_vec = self.fc(self.dropout(self.relu(movie_vec)))
 
         movie_bias = self.bias_movie(movie_id).flatten()
         return movie_vec, movie_bias
