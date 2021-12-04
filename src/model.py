@@ -7,16 +7,16 @@ import pytorch_lightning as pl
 class UserEncoder(torch.nn.Module):
     def __init__(self,
                  num_users: int,
-                 num_ages: int,
-                 num_genders: int,
-                 num_occupations: int,
-                 num_zip_areas: int,
-                 common_embedding_dim: int,
                  user_embedding_dim: int,
+                 num_ages: int,
                  user_age_embedding_dim: int,
+                 num_genders: int,
                  user_gender_embedding_dim: int,
+                 num_occupations: int,
                  user_occupation_embedding_dim: int,
+                 num_zip_areas: int,
                  user_zip_area_embedding_dim: int,
+                 common_embedding_dim: int,
                  dropout: float):
         super().__init__()
 
@@ -71,12 +71,11 @@ class UserEncoder(torch.nn.Module):
 class MovieEncoder(torch.nn.Module):
     def __init__(self,
                  num_movies: int,
-                 num_categories: int,
-                 common_embedding_dim: int,
                  movie_embedding_dim: int,
+                 num_categories: int,
                  movie_category_dim: int,
-                 dropout: float
-                 ):
+                 common_embedding_dim: int,
+                 dropout: float):
         super().__init__()
 
         self.emb_movies = torch.nn.Embedding(num_embeddings=num_movies,
@@ -132,23 +131,23 @@ class LightningCollaborativeFiltering(pl.LightningModule):
         self.loss = torch.nn.MSELoss()
 
         self.user_encoder = UserEncoder(num_users=num_users,
-                                        num_ages=num_ages,
-                                        num_genders=num_genders,
-                                        num_occupations=num_occupations,
-                                        num_zip_areas=num_zip_areas,
-                                        common_embedding_dim=common_embedding_dim,
                                         user_embedding_dim=user_embedding_dim,
+                                        num_ages=num_ages,
                                         user_age_embedding_dim=user_age_embedding_dim,
+                                        num_genders=num_genders,
                                         user_gender_embedding_dim=user_gender_embedding_dim,
+                                        num_occupations=num_occupations,
                                         user_occupation_embedding_dim=user_occupation_embedding_dim,
+                                        num_zip_areas=num_zip_areas,
                                         user_zip_area_embedding_dim=user_zip_area_embedding_dim,
+                                        common_embedding_dim=common_embedding_dim,
                                         dropout=dropout)
 
         self.movie_encoder = MovieEncoder(num_movies=num_movies,
-                                          num_categories=num_categories,
-                                          common_embedding_dim=common_embedding_dim,
                                           movie_embedding_dim=movie_embedding_dim,
+                                          num_categories=num_categories,
                                           movie_category_dim=movie_category_dim,
+                                          common_embedding_dim=common_embedding_dim,
                                           dropout=dropout)
 
         self.dropout = torch.nn.Dropout(dropout)
