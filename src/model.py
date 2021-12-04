@@ -94,9 +94,8 @@ class MovieEncoder(torch.nn.Module):
         return movie_vec, movie_bias
 
 
-class CollaborativeFiltering(torch.nn.Module):
-    def __init__(self,
-                 num_users: int,
+class LightningCollaborativeFiltering(pl.LightningModule):
+    def __init__(self, num_users: int,
                  num_movies: int,
                  num_categories: int,
                  num_ages: int,
@@ -109,12 +108,15 @@ class CollaborativeFiltering(torch.nn.Module):
                  user_age_embedding_dim: int,
                  user_gender_embedding_dim: int,
                  user_occupation_embedding_dim: int,
-                 dropout: float):
+                 dropout: float,
+                 lr: float = 1e-2,
+                 margin: float = 0.1):
         super().__init__()
+        self.save_hyperparameters()
 
-        self.margin = 0.1
-
-        assert movie_embedding_dim + movie_category_dim == user_embedding_dim + user_age_embedding_dim + user_gender_embedding_dim, "Movie dims should have the same length as User dims"
+        self.lr = lr
+        self.margin = margin
+        self.loss = torch.nn.MSELoss()
 
         self.user_encoder = UserEncoder(num_users=num_users,
                                         num_ages=num_ages,
@@ -136,22 +138,9 @@ class CollaborativeFiltering(torch.nn.Module):
 
         self.dropout = torch.nn.Dropout(dropout)
 
-        # TODO:
-        #  Add content information
-        #   - Number of votes per user/movie
-        #   - User profile data
-        #   - Add occupation/zip
-
-    def forward(self,
-                user_id: torch.Tensor,
-                user_age: torch.Tensor,
-                user_gender: torch.Tensor,
-                user_occupation: torch.Tensor,
-                movie_id: torch.Tensor,
-                movie_categories: torch.Tensor
-                ) -> torch.Tensor:
-        user_vec, user_bias = self.user_encoder(user_id, user_age, user_gender, user_occupation)
-        movie_vec, movie_bias = self.movie_encoder(movie_id, movie_categories)
+    def forward(self, users, user_age, user_gender, user_occupation, movies, movie_categories):
+        user_vec, user_bias = self.user_encoder(users, user_age, user_gender, user_occupation)
+        movie_vec, movie_bias = self.movie_encoder(movies, movie_categories)
 
         product = (user_vec * movie_vec).sum(dim=1)
 
@@ -161,49 +150,8 @@ class CollaborativeFiltering(torch.nn.Module):
         out = torch.sigmoid(scaled_product)
         # Rescale output (sigmoid saturates at 0 and 1)
         out = out * (1.0 + 2 * self.margin) - self.margin
+
         return out
-
-
-class LightningCollaborativeFiltering(pl.LightningModule):
-    def __init__(self, num_users: int,
-                 num_movies: int,
-                 num_categories: int,
-                 num_ages: int,
-                 num_genders: int,
-                 num_occupations: int,
-                 common_embedding_dim: int,
-                 user_embedding_dim: int,
-                 movie_embedding_dim: int,
-                 movie_category_dim: int,
-                 user_age_embedding_dim: int,
-                 user_gender_embedding_dim: int,
-                 user_occupation_embedding_dim: int,
-                 dropout: float,
-                 lr=1e-2):
-        super().__init__()
-        self.save_hyperparameters()
-
-        self.model = CollaborativeFiltering(num_users=num_users,
-                                            num_movies=num_movies,
-                                            num_categories=num_categories,
-                                            num_ages=num_ages,
-                                            num_genders=num_genders,
-                                            num_occupations=num_occupations,
-                                            common_embedding_dim=common_embedding_dim,
-                                            user_embedding_dim=user_embedding_dim,
-                                            movie_embedding_dim=movie_embedding_dim,
-                                            movie_category_dim=movie_category_dim,
-                                            user_age_embedding_dim=user_age_embedding_dim,
-                                            user_gender_embedding_dim=user_gender_embedding_dim,
-                                            user_occupation_embedding_dim=user_occupation_embedding_dim,
-                                            dropout=dropout)
-
-        self.lr = lr
-
-        self.loss = torch.nn.MSELoss()
-
-    def forward(self, users, user_age, user_gender, user_occupation, movies, movie_categories):
-        return self.model(users, user_age, user_gender, user_occupation, movies, movie_categories)
 
     def _base_step(self, batch, batch_idx):
         users = batch["user"]
