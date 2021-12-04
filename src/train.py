@@ -34,6 +34,7 @@ def main() -> None:
                                             num_genders=datamodule.num_genders,
                                             num_categories=datamodule.num_categories,
                                             num_occupations=datamodule.num_occupations,
+                                            num_zip_areas=datamodule.num_zip_areas,
                                             common_embedding_dim=cfg.MODEL.COMMON_EMBEDDING_DIM,
                                             user_embedding_dim=cfg.MODEL.USER_EMBEDDING_DIM,
                                             movie_embedding_dim=cfg.MODEL.MOVIE_EMBEDDING_DIM,
@@ -41,6 +42,7 @@ def main() -> None:
                                             user_age_embedding_dim=cfg.MODEL.USER_AGE_EMBEDDING_DIM,
                                             user_gender_embedding_dim=cfg.MODEL.USER_GENDER_EMBEDDING_DIM,
                                             user_occupation_embedding_dim=cfg.MODEL.USER_OCCUPATION_EMBEDDING_DIM,
+                                            user_zip_area_embedding_dim=cfg.MODEL.USER_ZIP_AREA_EMBEDDING_DIM,
                                             dropout=cfg.MODEL.DROPOUT,
                                             lr=cfg.MODEL.LEARNING_RATE)
     # Callbacks

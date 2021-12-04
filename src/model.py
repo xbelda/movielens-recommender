@@ -10,11 +10,13 @@ class UserEncoder(torch.nn.Module):
                  num_ages: int,
                  num_genders: int,
                  num_occupations: int,
+                 num_zip_areas: int,
                  common_embedding_dim: int,
                  user_embedding_dim: int,
                  user_age_embedding_dim: int,
                  user_gender_embedding_dim: int,
                  user_occupation_embedding_dim: int,
+                 user_zip_area_embedding_dim: int,
                  dropout: float):
         super().__init__()
 
@@ -32,7 +34,14 @@ class UserEncoder(torch.nn.Module):
         self.emb_occupation = torch.nn.Embedding(num_embeddings=num_occupations,
                                                  embedding_dim=user_occupation_embedding_dim)
 
-        fc_input_dim = user_embedding_dim + user_age_embedding_dim + user_gender_embedding_dim + user_occupation_embedding_dim
+        self.emb_zip_area = torch.nn.Embedding(num_embeddings=num_zip_areas,
+                                               embedding_dim=user_zip_area_embedding_dim)
+
+        fc_input_dim = (user_embedding_dim
+                        + user_age_embedding_dim
+                        + user_gender_embedding_dim
+                        + user_occupation_embedding_dim
+                        + user_zip_area_embedding_dim)
         self.fc = torch.nn.Linear(in_features=fc_input_dim,
                                   out_features=common_embedding_dim)
 
@@ -43,13 +52,15 @@ class UserEncoder(torch.nn.Module):
                 user_id: torch.Tensor,
                 age: torch.Tensor,
                 gender: torch.Tensor,
-                occupation: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
+                occupation: torch.Tensor,
+                zip_area: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
         raw_user_vec = self.emb_users(user_id)
         user_age = self.emb_age(age)
         user_gender = self.emb_gender(gender)
         user_occupation = self.emb_occupation(occupation)
+        user_zip_area = self.emb_zip_area(zip_area)
 
-        user_vec = torch.cat([raw_user_vec, user_age, user_gender, user_occupation], dim=1)
+        user_vec = torch.cat([raw_user_vec, user_age, user_gender, user_occupation, user_zip_area], dim=1)
         user_vec = self.dropout(self.relu(user_vec))
         user_vec = self.fc(user_vec)
 
@@ -101,6 +112,7 @@ class LightningCollaborativeFiltering(pl.LightningModule):
                  num_ages: int,
                  num_genders: int,
                  num_occupations: int,
+                 num_zip_areas: int,
                  common_embedding_dim: int,
                  user_embedding_dim: int,
                  movie_embedding_dim: int,
@@ -108,6 +120,7 @@ class LightningCollaborativeFiltering(pl.LightningModule):
                  user_age_embedding_dim: int,
                  user_gender_embedding_dim: int,
                  user_occupation_embedding_dim: int,
+                 user_zip_area_embedding_dim: int,
                  dropout: float,
                  lr: float = 1e-2,
                  margin: float = 0.1):
@@ -122,11 +135,13 @@ class LightningCollaborativeFiltering(pl.LightningModule):
                                         num_ages=num_ages,
                                         num_genders=num_genders,
                                         num_occupations=num_occupations,
+                                        num_zip_areas=num_zip_areas,
                                         common_embedding_dim=common_embedding_dim,
                                         user_embedding_dim=user_embedding_dim,
                                         user_age_embedding_dim=user_age_embedding_dim,
                                         user_gender_embedding_dim=user_gender_embedding_dim,
                                         user_occupation_embedding_dim=user_occupation_embedding_dim,
+                                        user_zip_area_embedding_dim=user_zip_area_embedding_dim,
                                         dropout=dropout)
 
         self.movie_encoder = MovieEncoder(num_movies=num_movies,
@@ -138,8 +153,8 @@ class LightningCollaborativeFiltering(pl.LightningModule):
 
         self.dropout = torch.nn.Dropout(dropout)
 
-    def forward(self, users, user_age, user_gender, user_occupation, movies, movie_categories):
-        user_vec, user_bias = self.user_encoder(users, user_age, user_gender, user_occupation)
+    def forward(self, users, user_age, user_gender, user_occupation, user_zip_area, movies, movie_categories):
+        user_vec, user_bias = self.user_encoder(users, user_age, user_gender, user_occupation, user_zip_area)
         movie_vec, movie_bias = self.movie_encoder(movies, movie_categories)
 
         product = (user_vec * movie_vec).sum(dim=1)
@@ -157,12 +172,15 @@ class LightningCollaborativeFiltering(pl.LightningModule):
         users = batch["user"]
         movies = batch["movie"]
         ratings = batch["rating"]
+
         user_age = batch["user_age"]
         user_gender = batch["user_gender"]
         user_occupation = batch["user_occupation"]
+        user_zip_area = batch["user_zip_area"]
+
         movie_categories = batch["movie_categories"]
 
-        ratings_pred = self(users, user_age, user_gender, user_occupation, movies, movie_categories)
+        ratings_pred = self(users, user_age, user_gender, user_occupation, user_zip_area, movies, movie_categories)
 
         # Convert to same dtypes
         ratings = ratings.to(ratings_pred.dtype)

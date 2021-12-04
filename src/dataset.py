@@ -108,6 +108,9 @@ class MovielensDataModule(pl.LightningDataModule):
         self.num_categories = len(genres_encoder.classes_)
         self.num_occupations = len(occupation_encoder.classes_)
 
+        self.num_zip_areas = 10  # These might not reach 0-9 but this way we can be cautious
+        self.num_zip_section = 100
+
     def setup(self, stage: Optional[str] = None) -> None:
         # Train/Val split
         train_data, val_data = self._train_val_temporal_split(self.data, self.train_test_ratio)
