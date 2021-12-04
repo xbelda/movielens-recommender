@@ -1,40 +1,23 @@
-from collections import defaultdict
-from typing import Dict, Optional, Tuple, List
+from typing import Dict, Optional, List
 
-import numpy as np
 import pandas as pd
 import pytorch_lightning as pl
 import torch
-from sklearn.preprocessing import MinMaxScaler
+from sklearn.preprocessing import MinMaxScaler, LabelEncoder
 from torch.utils.data import Dataset, DataLoader
-
-from src.encoding import LabelEncoder
 
 
 class MovielensDataset(Dataset):
-    def __init__(self,
-                 scores: pd.DataFrame,
-                 movies: pd.DataFrame,
-                 users: pd.DataFrame,
-                 user_encoder: LabelEncoder,
-                 movie_encoder: LabelEncoder,
-                 movie_categories_encoder: LabelEncoder,
-                 user_gender_encoder: LabelEncoder,
-                 user_age_encoder: LabelEncoder):
-        self.user_ids = scores["UserID"].values
-        self.movie_ids = scores["MovieID"].values
-        self.ratings = scores["ScaledRating"].values
-
-        self.user_info = users.set_index("UserID")
-
-        self.user_encoder = user_encoder
-        self.movie_encoder = movie_encoder
-
-        self.movie_categories = movies.set_index("MovieID")["Genres"]
-        self.movie_categories_encoder = movie_categories_encoder
-
-        self.user_gender_encoder = user_gender_encoder
-        self.user_age_encoder = user_age_encoder
+    def __init__(self, data: pd.DataFrame):
+        self.user_ids = data["UserID"].values
+        self.movie_ids = data["MovieID"].values
+        self.ratings = data["ScaledRating"].values
+        self.genders = data["GenderEncoded"].values
+        self.age = data["AgeEncoded"].values
+        self.ocupations = data["OccupationEncoded"].values
+        self.genres = data["GenresList"].values
+        self.zip_area = data["Zip-code-Area"].values
+        self.zip_section = data["Zip-code-Section"].values
 
     def __len__(self):
         return len(self.user_ids)
@@ -43,28 +26,22 @@ class MovielensDataset(Dataset):
         user_id = self.user_ids[idx]
         movie_id = self.movie_ids[idx]
         rating = self.ratings[idx]
+        user_gender = self.genders[idx]
+        user_age = self.age[idx]
+        user_ocupation = self.ocupations[idx]
+        user_zip_area = self.zip_area[idx]
+        user_zip_section = self.zip_section[idx]
+        movie_genre = self.genres[idx]
 
-        # Transform IDs
-        new_user_id = self.user_encoder.transform(user_id)
-        new_movie_id = self.movie_encoder.transform(movie_id)
-
-        # Encode categories
-        raw_categories = self.movie_categories.loc[movie_id]
-        categories = raw_categories.split("|")
-        encoded_categories = [self.movie_categories_encoder.transform(c) for c in categories]
-
-        # Encode User data
-        user_data = self.user_info.loc[user_id]
-
-        user_age = self.user_age_encoder.transform(user_data["Age"])
-        user_gender = self.user_gender_encoder.transform(user_data["Gender"])
-
-        return {"user": new_user_id,
-                "movie": new_movie_id,
+        return {"user": user_id,
+                "movie": movie_id,
                 "rating": rating,
-                "movie_categories": encoded_categories,
                 "user_age": user_age,
-                "user_gender": user_gender}
+                "user_gender": user_gender,
+                "user_ocupation": user_ocupation,
+                "user_zip_area": user_zip_area,
+                "user_zip_section": user_zip_section,
+                "movie_categories": movie_genre}
 
 
 class MovielensDataModule(pl.LightningDataModule):
@@ -83,44 +60,60 @@ class MovielensDataModule(pl.LightningDataModule):
 
     def prepare_data(self):
         # Load Data
-        self.ratings = pd.read_parquet(self.ratings_dir)
-        self.movies = pd.read_parquet(self.movies_dir)
-        self.users = pd.read_parquet(self.users_dir)
+        ratings = pd.read_parquet(self.ratings_dir)
+        movies = pd.read_parquet(self.movies_dir)
+        users = pd.read_parquet(self.users_dir)
 
-        # Generate encoders
-        self.user_encoder = LabelEncoder().fit(self.ratings["UserID"].unique())
-        self.movie_encoder = LabelEncoder().fit(self.ratings["MovieID"].unique())
+        data = (ratings
+                .merge(users, on="UserID", how="left")
+                .merge(movies, on="MovieID", how="left"))
 
-        unique_movie_cats = self.movies["Genres"].str.split("|").explode().unique()
-        self.movie_cat_encoder = LabelEncoder().fit(unique_movie_cats)
+        # Scale Rating
+        scaler = MinMaxScaler().fit(data[["Rating"]])  # Transform ranges 1 to 5
+        data["ScaledRating"] = scaler.transform(data[["Rating"]])
 
-        self.user_gender_encoder = LabelEncoder(handle_unknown=False).fit(self.users["Gender"].unique())
-        self.user_age_encoder = LabelEncoder(handle_unknown=False).fit(self.users["Age"].unique())
+        # Gender
+        gender_encoder = LabelEncoder().fit(data["Gender"])
+        data["GenderEncoded"] = gender_encoder.transform(data["Gender"])
 
-        # Scaling
-        self.scaler = MinMaxScaler().fit([[1], [5]])  # Transform ranges 1 to 5
+        # Age
+        age_encoder = LabelEncoder().fit(data["Age"])
+        data["AgeEncoded"] = age_encoder.transform(data["Age"])
 
-    def _base_setup(self, ratings: pd.DataFrame) -> MovielensDataset:
-        ratings["ScaledRating"] = self.scaler.transform(ratings[["Rating"]]).flatten()
+        # Ocupation
+        ocupation_encoder = LabelEncoder().fit(data["Occupation"])
+        data["OccupationEncoded"] = ocupation_encoder.transform(data["Occupation"])
 
-        # Datasets
-        dataset = MovielensDataset(scores=ratings,
-                                   movies=self.movies,
-                                   users=self.users,
-                                   user_encoder=self.user_encoder,
-                                   movie_encoder=self.movie_encoder,
-                                   movie_categories_encoder=self.movie_cat_encoder,
-                                   user_age_encoder=self.user_age_encoder,
-                                   user_gender_encoder=self.user_gender_encoder)
-        return dataset
+        # Genres
+        genres = data["Genres"].str.split("|").explode().to_frame()
+
+        genres_encoder = LabelEncoder().fit(genres["Genres"])
+        genres["EncodedGenres"] = genres_encoder.transform(genres["Genres"])
+
+        data["GenresList"] = genres.groupby(genres.index)["EncodedGenres"].apply(list)
+
+        # Zip code
+        # Note: Zip codes can be divided into regions: https://www.loqate.com/resources/blog/what-is-a-zip-code/
+        data["Zip-code-Area"] = data["Zip-code"].str[0].astype(int)
+        data["Zip-code-Section"] = data["Zip-code"].str[1:3].astype(int)
+
+        # Save data
+        self.data = data
+
+        # Store dimensions
+        self.num_users = self.data["UserID"].max() + 1
+        self.num_movies = self.data["MovieID"].max() + 1
+        self.num_genders = len(gender_encoder.classes_)
+        self.num_ages = len(age_encoder.classes_)
+        self.num_categories = len(genres_encoder.classes_)
 
     def setup(self, stage: Optional[str] = None) -> None:
         # Train/Val split
-        train_ratings, val_ratings = self._train_val_temporal_split(self.ratings, self.train_test_ratio)
+        train_data, val_data = self._train_val_temporal_split(self.data, self.train_test_ratio)
 
         # Datasets
-        self.train_dataset = self._base_setup(train_ratings)
-        self.val_dataset = self._base_setup(val_ratings)
+        self.train_dataset = MovielensDataset(data=train_data)
+        self.val_dataset = MovielensDataset(data=val_data)
 
     @staticmethod
     def _collate_fn(batch: List):

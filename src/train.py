@@ -28,11 +28,11 @@ def main() -> None:
     datamodule.prepare_data()
 
     # Model
-    model = LightningCollaborativeFiltering(num_users=len(datamodule.user_encoder),
-                                            num_movies=len(datamodule.movie_encoder),
-                                            num_categories=len(datamodule.movie_cat_encoder),
-                                            num_genders=len(datamodule.user_gender_encoder),
-                                            num_ages=len(datamodule.user_age_encoder),
+    model = LightningCollaborativeFiltering(num_users=datamodule.num_users,
+                                            num_movies=datamodule.num_movies,
+                                            num_genders=datamodule.num_genders,
+                                            num_ages=datamodule.num_ages,
+                                            num_categories=datamodule.num_categories,
                                             common_embedding_dim=cfg.MODEL.COMMON_EMBEDDING_DIM,
                                             user_embedding_dim=cfg.MODEL.USER_EMBEDDING_DIM,
                                             movie_embedding_dim=cfg.MODEL.MOVIE_EMBEDDING_DIM,
