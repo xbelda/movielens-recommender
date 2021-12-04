@@ -14,7 +14,7 @@ class MovielensDataset(Dataset):
         self.ratings = data["ScaledRating"].values
         self.genders = data["GenderEncoded"].values
         self.age = data["AgeEncoded"].values
-        self.ocupations = data["OccupationEncoded"].values
+        self.occupations = data["OccupationEncoded"].values
         self.genres = data["GenresList"].values
         self.zip_area = data["Zip-code-Area"].values
         self.zip_section = data["Zip-code-Section"].values
@@ -28,7 +28,7 @@ class MovielensDataset(Dataset):
         rating = self.ratings[idx]
         user_gender = self.genders[idx]
         user_age = self.age[idx]
-        user_ocupation = self.ocupations[idx]
+        user_occupation = self.occupations[idx]
         user_zip_area = self.zip_area[idx]
         user_zip_section = self.zip_section[idx]
         movie_genre = self.genres[idx]
@@ -38,7 +38,7 @@ class MovielensDataset(Dataset):
                 "rating": rating,
                 "user_age": user_age,
                 "user_gender": user_gender,
-                "user_ocupation": user_ocupation,
+                "user_occupation": user_occupation,
                 "user_zip_area": user_zip_area,
                 "user_zip_section": user_zip_section,
                 "movie_categories": movie_genre}
@@ -81,8 +81,8 @@ class MovielensDataModule(pl.LightningDataModule):
         data["AgeEncoded"] = age_encoder.transform(data["Age"])
 
         # Ocupation
-        ocupation_encoder = LabelEncoder().fit(data["Occupation"])
-        data["OccupationEncoded"] = ocupation_encoder.transform(data["Occupation"])
+        occupation_encoder = LabelEncoder().fit(data["Occupation"])
+        data["OccupationEncoded"] = occupation_encoder.transform(data["Occupation"])
 
         # Genres
         genres = data["Genres"].str.split("|").explode().to_frame()
@@ -106,6 +106,7 @@ class MovielensDataModule(pl.LightningDataModule):
         self.num_genders = len(gender_encoder.classes_)
         self.num_ages = len(age_encoder.classes_)
         self.num_categories = len(genres_encoder.classes_)
+        self.num_occupations = len(occupation_encoder.classes_)
 
     def setup(self, stage: Optional[str] = None) -> None:
         # Train/Val split
